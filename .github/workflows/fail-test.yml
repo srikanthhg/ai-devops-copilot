@@ -1,0 +1,8 @@
+# .github/workflows/fail-test.yml
+name: Test Failure Trigger
+on: push
+jobs:
+  fail:
+    runs-on: ubuntu-latest
+    steps:
+      - run: exit 1
