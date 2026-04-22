@@ -1,0 +1,59 @@
+on:
+  workflow_run:
+    workflows: ["*"]
+    types: [completed]
+    branches: [main, develop]
+
+jobs:
+  analyze-failure:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    
+    # 🔐 Required permissions for logs + PR creation
+    permissions:
+      actions: read
+      contents: write
+    
+    # 🚀 Opt into Node.js 24 early (avoid deprecation)
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+      AZURE_OPENAI_KEY: ${{ secrets.AZURE_OPENAI_KEY }}
+      AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
+      AZURE_SEARCH_KEY: ${{ secrets.AZURE_SEARCH_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+      LOG_FILE: pipeline_logs.txt
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        
+      - name: Download failed workflow logs (with fallback)
+        run: |
+          echo "🔄 Attempting to download logs..."
+          python scripts/fetch_logs.py \
+            --run-id "${{ github.event.workflow_run.id }}" \
+            --repo "${{ github.repository }}" \
+            --token "${{ secrets.GH_ADMIN_TOKEN }}" \
+            --output "$LOG_FILE" || {
+              echo "⚠️ Logs download failed - using synthetic context"
+              echo "[SYNTHETIC LOGS] Workflow: ${{ github.event.workflow_run.name }} | Conclusion: failure | Branch: ${{ github.event.workflow_run.head_branch }}" > "$LOG_FILE"
+            }
+            
+      - name: Run Copilot Agent
+        run: python src/agent/main.py --log-file "$LOG_FILE"
+        
+      - name: Upload Metrics Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: copilot-metrics-${{ github.run_id }}
+          path: copilot_metrics.json
+          retention-days: 7
