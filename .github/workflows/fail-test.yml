@@ -1,8 +1,7 @@
-# .github/workflows/fail-test.yml
-name: Test Failure Trigger
+name: Test Failure for Copilot
 on: push
 jobs:
-  fail:
+  intentional-fail:
     runs-on: ubuntu-latest
     steps:
-      - run: exit 1
+      - run: echo "Simulating pipeline failure" && exit 1
