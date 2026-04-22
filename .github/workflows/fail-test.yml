@@ -5,3 +5,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: echo "Simulating pipeline failure" && exit 1
+
+
