@@ -1,0 +1,22 @@
+name: Copilot Auto-Analysis
+on:
+  workflow_run:
+    workflows: ["*"]
+    types: [completed]
+    branches: [main, develop]
+
+jobs:
+  analyze-failure:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Copilot Analysis
+        env:
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_AI_SEARCH_ENDPOINT: ${{ secrets.AZURE_AI_SEARCH_ENDPOINT }}
+        run: |
+          python src/agent/copilot.py \
+            --log-url "${{ github.event.workflow_run.logs_url }}" \
+            --repo "${{ github.repository }}" \
+            --run-id "${{ github.event.workflow_run.id }}"
